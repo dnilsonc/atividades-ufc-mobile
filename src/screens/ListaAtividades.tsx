@@ -9,11 +9,18 @@ type Props = NativeStackScreenProps<RootStackParamList, 'ListaAtividades'>;
 const ListaAtividades: React.FC<Props> = ({ navigation }) => {
   const { atividades } = useAtividades();
   const [search, setSearch] = useState('');
-
-  // Filtra as atividades pelo nome (ignorando maiúsculas/minúsculas)
+  
   const filteredAtividades = atividades.filter((atividade) =>
     atividade.nome.toLowerCase().includes(search.toLowerCase())
   );
+
+  const formatDateForDisplay = (date: Date) => {
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const formatTimeForDisplay = (date: Date) => {
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
 
   return (
     <View style={styles.container}>
@@ -41,7 +48,13 @@ const ListaAtividades: React.FC<Props> = ({ navigation }) => {
               onPress={() => navigation.navigate('DetalhesAtividade', { id: item.id })}
             >
               <Text style={styles.nome}>{item.nome}</Text>
-              <Text>{item.data} - {item.responsavel}</Text>
+
+              {/* Exibindo a data e hora na mesma linha */}
+              <Text style={styles.dataHora}>
+                {formatDateForDisplay(new Date(item.data))} - {formatTimeForDisplay(new Date(item.data))}
+              </Text>
+
+              <Text style={styles.responsavel}>{item.responsavel}</Text>
             </TouchableOpacity>
           )}
         />
@@ -69,6 +82,16 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   nome: { fontSize: 18, fontWeight: 'bold' },
+  dataHora: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 5,
+  },
+  responsavel: {
+    fontSize: 14,
+    color: '#333',
+    marginTop: 5,
+  },
 });
 
 export default ListaAtividades;

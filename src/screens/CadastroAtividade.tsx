@@ -4,33 +4,35 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useAtividades } from '../context/AtividadesContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as Notifications from 'expo-notifications';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CadastroAtividade'>;
 
 export default function CadastroAtividade({ navigation, route }: Props) {
   const { adicionarAtividade, editarAtividade, atividades } = useAtividades();
-  const { id } = route.params || {}; // Recebe o id da atividade, caso haja
+  const { id } = route.params || {};
 
   const [nome, setNome] = useState('');
   const [responsavel, setResponsavel] = useState('');
-  const [data, setData] = useState(new Date()); // Usa Date para o estado
+  const [data, setData] = useState(new Date());
+  const [hora, setHora] = useState(new Date());
   const [descricao, setDescricao] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false); // Controla a visibilidade do date picker
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
-  // Efeito para carregar os dados da atividade quando o id for passado
   useEffect(() => {
     if (id) {
       const atividade = atividades.find((atividade) => atividade.id === id);
       if (atividade) {
         setNome(atividade.nome);
         setResponsavel(atividade.responsavel);
-        setData(new Date(atividade.data)); // Converte a data para um objeto Date
+        setData(new Date(atividade.data));
         setDescricao(atividade.descricao);
       }
     }
   }, [id, atividades]);
 
-  const handleSalvar = () => {
+  const handleSalvar = async () => {
     if (!nome || !responsavel || !data || !descricao) {
       Alert.alert('Erro', 'Todos os campos são obrigatórios!');
       return;
@@ -40,34 +42,70 @@ export default function CadastroAtividade({ navigation, route }: Props) {
       id: id || Date.now(),
       nome,
       responsavel,
-      data: data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').join('-'), // Formata a data como DD-MM-YYYY
+      data: data.toISOString(),
       descricao,
     };
 
+    const dataHora = new Date(data);
+    dataHora.setHours(hora.getHours());
+    dataHora.setMinutes(hora.getMinutes());
+
+    if (dataHora.getTime() <= new Date().getTime()) {
+      Alert.alert('Erro', 'A data e hora da atividade devem estar no futuro!');
+      return;
+    }
+
     if (id) {
-      editarAtividade(atividade); // Edita a atividade se o id for fornecido
+      editarAtividade(atividade);
       Alert.alert('Sucesso', 'Atividade editada com sucesso!');
     } else {
-      adicionarAtividade(atividade); // Adiciona uma nova atividade
+      adicionarAtividade(atividade);
       Alert.alert('Sucesso', 'Atividade cadastrada com sucesso!');
+
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Lembrete de Atividade",
+          body: `Não se esqueça da atividade: ${nome}`,
+        },
+        trigger: {
+          type: "date",
+          date: dataHora,
+        },
+      });
+
+      console.log('Notificação agendada com ID:', notificationId);  // Verifica o ID da notificação agendada
     }
 
     navigation.goBack();
   };
 
-  // Função para formatar a data exibida no TextInput
   const formatDateForDisplay = (date: Date) => {
     return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
+
+  const formatTimeForDisplay = (date: Date) => {
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
   const showDatePickerModal = () => {
     setShowDatePicker(true);
   };
 
+  const showTimePickerModal = () => {
+    setShowTimePicker(true);
+  };
+
   const onDateChange = (event: any, selectedDate: Date | undefined) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setData(selectedDate);
+    }
+  };
+
+  const onTimeChange = (event: any, selectedTime: Date | undefined) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedTime) {
+      setHora(selectedTime);
     }
   };
 
@@ -90,6 +128,20 @@ export default function CadastroAtividade({ navigation, route }: Props) {
           mode="date"
           display="default"
           onChange={onDateChange}
+        />
+      )}
+
+      <Text style={styles.label}>Hora:</Text>
+      <TouchableOpacity onPress={showTimePickerModal} style={styles.input}>
+        <Text>{formatTimeForDisplay(hora)}</Text>
+      </TouchableOpacity>
+
+      {showTimePicker && (
+        <DateTimePicker
+          value={hora}
+          mode="time"
+          display="default"
+          onChange={onTimeChange}
         />
       )}
 
